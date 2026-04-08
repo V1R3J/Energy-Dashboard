@@ -12,6 +12,7 @@ import Simulator from './pages/Simulator.jsx'
 import BuildingDetails from './pages/BuildingDetails.jsx'
 import Settings from './pages/Settings.jsx'
 import SummaryCards from './components/SummaryCards.jsx'
+import BillArchive from './pages/BillArchive.jsx'
 
 const App = () => {
   return (
@@ -28,6 +29,8 @@ const App = () => {
               <Route path="/simulator"        element={<Simulator />} />
               <Route path="/building-details" element={<BuildingDetails />} />
               <Route path="/settings"         element={<Settings />} />
+              <Route path="/bill-archive" element={<BillArchive />} />
+
             </Routes>
           </main>
         </div>

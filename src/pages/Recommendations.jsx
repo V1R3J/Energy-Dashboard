@@ -12,6 +12,7 @@ const recommendations = [
     color: 'bg-blue-50 text-blue-500',
     border: 'border-blue-100',
     tag: 'HVAC',
+    
     tagColor: 'bg-blue-50 text-blue-500',
     title: 'Smart HVAC Air Conditioning',
     summary: 'Air conditioning is the single largest electricity consumer in the building.',
