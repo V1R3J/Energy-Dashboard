@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Energy Bill Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --surface: #161b27;
+    --surface2: #1d2535;
+    --border: #252d3d;
+    --border2: #2e3848;
+    --text: #e8ecf3;
+    --muted: #7a8599;
+    --dim: #4a5568;
+    --accent: #4f9cf9;
+    --accent2: #22d3a5;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --violet: #a78bfa;
+    --green: #22d3a5;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 13px;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page-title {
+    font-family: var(--font-head);
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+
+  .page-title span {
+    color: var(--accent);
+  }
+
+  .page-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 5px;
+  }
+
+  .annual-pill {
+    background: linear-gradient(135deg, #4f9cf920, #22d3a520);
+    border: 1px solid #4f9cf940;
+    border-radius: 10px;
+    padding: 10px 16px;
+    text-align: right;
+  }
+
+  .annual-pill .ap-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .annual-pill .ap-val { font-family: var(--font-mono); font-size: 20px; color: var(--accent); font-weight: 500; margin-top: 2px; }
+
+  /* ── Section labels ── */
+  .sec-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin: 28px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sec-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Table ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: auto;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+  thead th {
+    font-family: var(--font-head);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th.r { text-align: right; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #ffffff05; }
+  tbody tr.active-row { background: #4f9cf910; }
+  tbody tr.active-row td:first-child { border-left: 2px solid var(--accent); }
+
+  td {
+    padding: 8px 14px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+  td.r { text-align: right; font-family: var(--font-mono); }
+  td.month-name { font-family: var(--font-head); font-size: 13px; font-weight: 600; }
+
+  /* ── Inputs ── */
+  .inp {
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 4px 8px;
+    text-align: right;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .inp:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px #4f9cf920; }
+
+  /* ── Metric cards ── */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 0;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .metric-card.blue::before { background: var(--accent); }
+  .metric-card.amber::before { background: var(--amber); }
+  .metric-card.green::before { background: var(--green); }
+  .metric-card.violet::before { background: var(--violet); }
+  .metric-card.rose::before { background: var(--rose); }
+  .metric-card.def::before { background: var(--dim); }
+
+  .mc-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
+  .mc-val { font-family: var(--font-mono); font-size: 20px; font-weight: 500; color: var(--text); }
+  .mc-sub { font-size: 10px; color: var(--dim); margin-top: 3px; }
+
+  /* ── Bill inputs grid ── */
+  .inputs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+
+  .inp-group label {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 5px;
+  }
+  .inp-group .inp { width: 100%; }
+
+  /* ── Bill output ── */
+  .bill-output {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 640px) { .bill-output { grid-template-columns: 1fr; } }
+
+  .bill-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+
+  .bill-panel-title {
+    font-family: var(--font-head);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-bottom: 12px;
+  }
+
+  .bill-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .bill-row:last-child { border-bottom: none; }
+  .bl { color: var(--muted); }
+  .bv { font-family: var(--font-mono); color: var(--text); font-weight: 500; }
+
+  .pct-bar-wrap { margin: 4px 0 8px; }
+  .pct-bar {
+    height: 5px;
+    background: var(--border2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .pct-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+  /* ── Grand total ── */
+  .grand-box {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-top: 12px;
+  }
+
+  .bill-components-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 28px;
+  }
+
+  .grand-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border2);
+  }
+
+  .grand-label { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--text); }
+  .grand-val { font-family: var(--font-mono); font-size: 26px; font-weight: 500; color: var(--accent2); }
+
+  /* ── Charts ── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+
+  .chart-title {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+  .chart-sub { font-size: 11px; color: var(--dim); margin-bottom: 16px; }
+
+  .chart-legend {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .legend-line {
+    width: 16px;
+    height: 2px;
+    border-radius: 1px;
+    flex-shrink: 0;
+  }
+
+  canvas { max-height: 280px; }
+
+  /* ── Select btn ── */
+  .sel-btn {
+    font-family: var(--font-body);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .sel-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .sel-btn:not(.active) { background: var(--surface2); color: var(--muted); }
+  .sel-btn:not(.active):hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">Energy Bill <span>Calculator</span></div>
+      <div class="page-sub">Monthly consumption · Bill computation · Year-on-year comparison</div>
+    </div>
+    <div class="annual-pill">
+      <div class="ap-label">Annual Consumption</div>
+      <div class="ap-val" id="annual-total">— kWh</div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="sec-label">Monthly Consumption Data</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th class="r">AC hrs/day</th>
+          <th class="r">Load factor</th>
+          <th class="r">Days</th>
+          <th class="r">Lights (kWh)</th>
+          <th class="r">Fans (kWh)</th>
+          <th class="r">AC (kWh)</th>
+          <th class="r">Others (kWh)</th>
+          <th class="r">Total (kWh)</th>
+          <th class="r">Select</th>
+        </tr>
+      </thead>
+      <tbody id="month-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Metrics -->
+  <div class="sec-label">Selected Month Breakdown</div>
+  <div class="metrics-grid" id="metric-cards"></div>
+
+  <!-- Charts -->
+  <div class="sec-label">Annual Consumption Analysis</div>
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <div class="chart-title">Monthly Consumption — Actual vs Projected</div>
+      <div class="chart-sub">Dashed line = baseline actual · Solid fill = current scenario · Click any month to select it</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-line" style="background:#4f9cf9;opacity:.5;border-top:2px dashed #4f9cf9;height:0"></div> Actual</div>
+        <div class="legend-item"><div class="legend-line" style="background:#22d3a5"></div> Projected</div>
+      </div>
+      <canvas id="chart-line"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Appliance Breakdown by Month</div>
+      <div class="chart-sub">Stacked bars showing consumption split</div>
+      <canvas id="chart-stack"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Monthly Bill Estimate (₹)</div>
+      <div class="chart-sub">Approximate cost based on energy charges only</div>
+      <canvas id="chart-cost"></canvas>
+    </div>
+  </div>
+
+  <!-- Bill Inputs -->
+  <div class="sec-label">Bill Inputs — Editable</div>
+  <div class="inputs-grid">
+    <div class="inp-group">
+      <label>Solar set-off (kWh)</label>
+      <input class="inp" id="inp-solar" type="number" value="455">
+    </div>
+    <div class="inp-group">
+      <label>Solar generation (kWh)</label>
+      <input class="inp" id="inp-solar-gen" type="number" value="55901">
+    </div>
+    <div class="inp-group">
+      <label>Contract demand (kW)</label>
+      <input class="inp" id="inp-contract" type="number" value="1600">
+    </div>
+    <div class="inp-group">
+      <label>Recorded demand (kW)</label>
+      <input class="inp" id="inp-recorded" type="number" value="1039">
+    </div>
+    <div class="inp-group">
+      <label>Avg power factor (%)</label>
+      <input class="inp" id="inp-pf" type="number" value="97">
+    </div>
+    <div class="inp-group">
+      <label>TOU charges (₹)</label>
+      <input class="inp" id="inp-tou" type="number" value="139110">
+    </div>
+    <div class="inp-group">
+      <label>NTC units</label>
+      <input class="inp" id="inp-ntc-units" type="number" value="52100">
+    </div>
+    <div class="inp-group">
+      <label>NTC rate (%)</label>
+      <input class="inp" id="inp-ntc-rate" type="number" value="30">
+    </div>
+    <div class="inp-group">
+      <label>PF adjustment (₹ — negative = rebate)</label>
+      <input class="inp" id="inp-pf-adj" type="number" value="-6593.58">
+    </div>
+    <div class="inp-group">
+      <label>Other debit (₹)</label>
+      <input class="inp" id="inp-other" type="number" value="3684">
+    </div>
+  </div>
+
+  <!-- Bill Output -->
+  <div class="sec-label">Calculated Bill</div>
+  <div class="bill-output">
+    <div class="bill-panel">
+      <div class="bill-panel-title">Units &amp; Demand</div>
+      <div class="bill-row"><span class="bl">Total consumed</span><span class="bv" id="b-total">—</span></div>
+      <div class="bill-row"><span class="bl">Solar set-off</span><span class="bv" id="b-setoff">—</span></div>
+      <div class="bill-row"><span class="bl">Net units billed</span><span class="bv" id="b-net">—</span></div>
+      <div class="bill-row"><span class="bl">Billing demand (85%)</span><span class="bv" id="b-billing-dem">—</span></div>
+      <div class="bill-row"><span class="bl">Max demand used</span><span class="bv" id="b-max-dem">—</span></div>
+    </div>
+    <div class="bill-panel">
+      <div class="bill-panel-title">Consumption Split</div>
+      <div class="bill-row"><span class="bl">AC</span><span class="bv" id="b-ac-pct">—</span></div>
+      <div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-fill" id="bar-ac" style="background:var(--accent)"></div></div></div>
+      <div class="bill-row"><span class="bl">Lights + Fans</span><span class="bv" id="b-lf-pct">—</span></div>
+      <div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-fill" id="bar-lf" style="background:var(--amber)"></div></div></div>
+      <div class="bill-row"><span class="bl">Others</span><span class="bv" id="b-oth-pct">—</span></div>
+      <div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-fill" id="bar-oth" style="background:var(--dim)"></div></div></div>
+    </div>
+  </div>
+
+  <div class="grand-box">
+    <div class="bill-panel-title">Bill Components</div>
+    <div class="bill-components-grid">
+      <div class="bill-row"><span class="bl">Energy charges</span><span class="bv" id="b-energy">—</span></div>
+      <div class="bill-row"><span class="bl">FPPPA @ ₹3.61/unit</span><span class="bv" id="b-fpppa">—</span></div>
+      <div class="bill-row"><span class="bl">Fixed demand charges</span><span class="bv" id="b-fixed">—</span></div>
+      <div class="bill-row"><span class="bl">Excess demand charges</span><span class="bv" id="b-excess">—</span></div>
+      <div class="bill-row"><span class="bl">TOU charges</span><span class="bv" id="b-tou">—</span></div>
+      <div class="bill-row"><span class="bl">PF adjustment</span><span class="bv" id="b-pfadj">—</span></div>
+      <div class="bill-row"><span class="bl">Govt duty @ 15%</span><span class="bv" id="b-duty">—</span></div>
+      <div class="bill-row"><span class="bl">Banking charges (solar)</span><span class="bv" id="b-bank">—</span></div>
+      <div class="bill-row"><span class="bl">NTC rebate</span><span class="bv" id="b-ntc">—</span></div>
+      <div class="bill-row"><span class="bl">Other debit</span><span class="bv" id="b-othdebit">—</span></div>
+      <div class="bill-row"><span class="bl">TCS @ 0.1%</span><span class="bv" id="b-tcs">—</span></div>
+      <div></div>
+    </div>
+    <div class="grand-row">
+      <span class="grand-label">Amount Due</span>
+      <span class="grand-val" id="b-total-due">—</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const monthData = [
+  {month:'Apr-24',acHrs:12,lf:0.45,hours:12,days:26,lights:11501.57,fans:7628.40,ac:86346,others:21974.03},
+  {month:'May-24',acHrs:10,lf:0.50,hours:12,days:26,lights:11501.57,fans:7628.40,ac:79950,others:27480.03},
+  {month:'Jun-24',acHrs:10,lf:0.40,hours:12,days:26,lights:11501.57,fans:7628.40,ac:63960,others:28770.03},
+  {month:'Jul-24',acHrs:10,lf:0.36,hours:12,days:26,lights:11501.57,fans:7628.40,ac:57564,others:35636.03},
+  {month:'Aug-24',acHrs:12,lf:0.45,hours:12,days:26,lights:11501.57,fans:7628.40,ac:86346,others:13234.03},
+  {month:'Sep-24',acHrs:12,lf:0.45,hours:12,days:26,lights:11501.57,fans:7628.40,ac:86346,others:16464.03},
+  {month:'Oct-24',acHrs:12,lf:0.40,hours:12,days:26,lights:11501.57,fans:7628.40,ac:76752,others:22388.03},
+  {month:'Nov-24',acHrs:9, lf:0.35,hours:12,days:26,lights:11501.57,fans:7628.40,ac:50368.5,others:22871.53},
+  {month:'Dec-24',acHrs:8, lf:0.28,hours:12,days:26,lights:11501.57,fans:7628.40,ac:35817.6,others:15622.43},
+  {month:'Jan-25',acHrs:8, lf:0.28,hours:12,days:26,lights:11501.57,fans:7628.40,ac:35817.6,others:21772.43},
+  {month:'Feb-25',acHrs:10,lf:0.35,hours:12,days:24,lights:10616.83,fans:7041.60,ac:51660,others:15471.57},
+  {month:'Mar-25',acHrs:12,lf:0.45,hours:12,days:26,lights:11501.57,fans:7628.40,ac:86346,others:18984.03},
+];
+
+let selectedIdx = 0;
+let lineChart = null, stackChart = null, costChart = null;
+
+const COLORS = {
+  accent: '#4f9cf9',
+  green: '#22d3a5',
+  amber: '#f59e0b',
+  violet: '#a78bfa',
+  rose: '#f43f5e',
+  dim: '#4a5568',
+  muted: '#7a8599',
+};
+
+function fmt(n){ return Math.round(n).toLocaleString('en-IN'); }
+function fmtDec(n,d=2){ return n.toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function getTotal(d){ return d.lights + d.fans + d.ac + d.others; }
+
+// Rough cost estimate per kWh for chart
+function estCost(kwh){
+  const solar = +document.getElementById('inp-solar').value || 0;
+  const net = Math.max(0, kwh - solar);
+  const en = net <= 1000 ? net * 4.55 : 1000 * 4.55 + (net - 1000) * 4.45;
+  const fpppa = net * 3.61;
+  return Math.round(en + fpppa);
+}
+
+function renderTable(){
+  const tbody = document.getElementById('month-tbody');
+  tbody.innerHTML = '';
+  monthData.forEach((d, i) => {
+    const total = getTotal(d);
+    const tr = document.createElement('tr');
+    if(i === selectedIdx) tr.className = 'active-row';
+    tr.innerHTML = `
+      <td class="month-name">${d.month}</td>
+      <td class="r"><input class="inp" type="number" value="${d.acHrs}" style="width:54px" onchange="updateField(${i},'acHrs',+this.value)"></td>
+      <td class="r"><input class="inp" type="number" value="${(d.lf*100).toFixed(0)}" style="width:54px" onchange="updateField(${i},'lf',+this.value/100)">%</td>
+      <td class="r"><input class="inp" type="number" value="${d.days}" style="width:46px" onchange="updateField(${i},'days',+this.value)"></td>
+      <td class="r"><input class="inp" type="number" value="${d.lights.toFixed(2)}" style="width:82px" onchange="updateField(${i},'lights',+this.value)"></td>
+      <td class="r"><input class="inp" type="number" value="${d.fans.toFixed(2)}" style="width:82px" onchange="updateField(${i},'fans',+this.value)"></td>
+      <td class="r"><input class="inp" type="number" value="${d.ac.toFixed(2)}" style="width:86px" onchange="updateField(${i},'ac',+this.value)"></td>
+      <td class="r"><input class="inp" type="number" value="${d.others.toFixed(2)}" style="width:86px" onchange="updateField(${i},'others',+this.value)"></td>
+      <td class="r" style="font-family:var(--font-mono);font-weight:500;color:var(--accent)">${fmt(total)}</td>
+      <td class="r"><button class="sel-btn ${i===selectedIdx?'active':''}" onclick="selectMonth(${i})">${i===selectedIdx?'Selected':'Use'}</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Update annual total
+  const annual = monthData.reduce((s,d) => s + getTotal(d), 0);
+  document.getElementById('annual-total').textContent = fmt(annual) + ' kWh';
+}
+
+function updateField(i, field, val){
+  monthData[i][field] = val;
+  renderAll();
+}
+
+function selectMonth(i){
+  selectedIdx = i;
+  renderAll();
+}
+
+function renderMetrics(){
+  const d = monthData[selectedIdx];
+  const total = getTotal(d);
+  const acPct = (d.ac / total * 100);
+  const lfPct = ((d.lights + d.fans) / total * 100);
+  const othPct = (d.others / total * 100);
+  document.getElementById('metric-cards').innerHTML = `
+    <div class="metric-card def">
+      <div class="mc-label">Month</div>
+      <div class="mc-val" style="font-size:17px;font-family:var(--font-head)">${d.month}</div>
+      <div class="mc-sub">${d.days} operating days</div>
+    </div>
+    <div class="metric-card blue">
+      <div class="mc-label">Total consumed</div>
+      <div class="mc-val">${fmt(total)}</div>
+      <div class="mc-sub">kWh</div>
+    </div>
+    <div class="metric-card blue">
+      <div class="mc-label">AC consumption</div>
+      <div class="mc-val">${fmt(d.ac)}</div>
+      <div class="mc-sub">${acPct.toFixed(1)}% of total · kWh</div>
+    </div>
+    <div class="metric-card violet">
+      <div class="mc-label">AC hours / day</div>
+      <div class="mc-val">${d.acHrs}</div>
+      <div class="mc-sub">Load factor ${(d.lf*100).toFixed(0)}%</div>
+    </div>
+    <div class="metric-card amber">
+      <div class="mc-label">Lights + Fans</div>
+      <div class="mc-val">${fmt(d.lights + d.fans)}</div>
+      <div class="mc-sub">${lfPct.toFixed(1)}% of total · kWh</div>
+    </div>
+    <div class="metric-card green">
+      <div class="mc-label">Others</div>
+      <div class="mc-val">${fmt(d.others)}</div>
+      <div class="mc-sub">${othPct.toFixed(1)}% of total · kWh</div>
+    </div>
+  `;
+}
+
+function renderCharts(){
+  const labels = monthData.map(d => d.month);
+  const totals = monthData.map(d => +(getTotal(d)/1000).toFixed(2));
+  const acVals = monthData.map(d => +(d.ac/1000).toFixed(2));
+  const lightVals = monthData.map(d => +(d.lights/1000).toFixed(2));
+  const fanVals = monthData.map(d => +(d.fans/1000).toFixed(2));
+  const othVals = monthData.map(d => +(d.others/1000).toFixed(2));
+  const costs = monthData.map(d => estCost(getTotal(d)));
+
+  // Highlight selected
+  const selBg = totals.map((_, i) => i === selectedIdx ? '#22d3a530' : 'transparent');
+  const selBorder = totals.map((_, i) => i === selectedIdx ? '#22d3a5' : COLORS.accent);
+  const selR = totals.map((_, i) => i === selectedIdx ? 7 : 4);
+
+  const chartDefaults = {
+    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+    scales: {
+      x: { grid: { color: '#ffffff08' }, ticks: { color: COLORS.muted, font: { size: 10 } } },
+      y: { grid: { color: '#ffffff08' }, ticks: { color: COLORS.muted, font: { size: 10 } } }
+    },
+    animation: { duration: 500 },
+    responsive: true,
+    maintainAspectRatio: true,
+  };
+
+  // Line chart
+  if(lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('chart-line'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Actual (kWh)',
+          data: totals,
+          borderColor: COLORS.accent,
+          backgroundColor: 'rgba(79,156,249,0.08)',
+          borderWidth: 2,
+          borderDash: [5, 4],
+          pointBackgroundColor: selBorder,
+          pointRadius: selR,
+          pointHoverRadius: 8,
+          fill: false,
+          tension: 0.35,
+        },
+        {
+          label: 'Projected (kWh)',
+          data: totals, // same data — users edit it via table
+          borderColor: COLORS.green,
+          backgroundColor: 'rgba(34,211,165,0.07)',
+          borderWidth: 2.5,
+          pointBackgroundColor: COLORS.green,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          fill: true,
+          tension: 0.35,
+        }
+      ]
+    },
+    options: {
+      ...chartDefaults,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          backgroundColor: '#1d2535',
+          borderColor: '#2e3848',
+          borderWidth: 1,
+          titleColor: '#e8ecf3',
+          bodyColor: '#7a8599',
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} kWh`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: '#ffffff08' }, ticks: { color: COLORS.muted, font: { size: 10 } } },
+        y: {
+          grid: { color: '#ffffff08' },
+          ticks: { color: COLORS.muted, font: { size: 10 }, callback: v => v + ' kWh' }
+        }
+      },
+      onClick(evt, el){
+        if(el.length){ selectMonth(el[0].index); }
+      }
+    }
+  });
+
+  // Stacked bar
+  if(stackChart) stackChart.destroy();
+  stackChart = new Chart(document.getElementById('chart-stack'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'AC', data: acVals, backgroundColor: COLORS.accent + 'cc', borderRadius: 2 },
+        { label: 'Lights', data: lightVals, backgroundColor: COLORS.amber + 'cc', borderRadius: 2 },
+        { label: 'Fans', data: fanVals, backgroundColor: COLORS.green + 'cc', borderRadius: 2 },
+        { label: 'Others', data: othVals, backgroundColor: COLORS.violet + 'cc', borderRadius: 2 },
+      ]
+    },
+    options: {
+      ...chartDefaults,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { color: COLORS.muted, font: { size: 10 }, boxWidth: 10, padding: 14 }
+        },
+        tooltip: {
+          mode: 'index', intersect: false,
+          backgroundColor: '#1d2535', borderColor: '#2e3848', borderWidth: 1,
+          titleColor: '#e8ecf3', bodyColor: '#7a8599',
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} kWh` }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { color: '#ffffff08' }, ticks: { color: COLORS.muted, font: { size: 10 } } },
+        y: { stacked: true, grid: { color: '#ffffff08' }, ticks: { color: COLORS.muted, font: { size: 10 }, callback: v => v + ' k' } }
+      }
+    }
+  });
+
+  // Cost bar
+  if(costChart) costChart.destroy();
+  costChart = new Chart(document.getElementById('chart-cost'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Estimated Bill (₹)',
+        data: costs,
+        backgroundColor: costs.map((_, i) => i === selectedIdx ? COLORS.green : COLORS.accent + '80'),
+        borderColor: costs.map((_, i) => i === selectedIdx ? COLORS.green : COLORS.accent),
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      ...chartDefaults,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: 'index', intersect: false,
+          backgroundColor: '#1d2535', borderColor: '#2e3848', borderWidth: 1,
+          titleColor: '#e8ecf3', bodyColor: '#7a8599',
+          callbacks: { label: ctx => ` ₹${ctx.parsed.y.toLocaleString('en-IN')}` }
+        }
+      },
+      scales: {
+        x: { grid: { color: '#ffffff08' }, ticks: { color: COLORS.muted, font: { size: 10 } } },
+        y: { grid: { color: '#ffffff08' }, ticks: { color: COLORS.muted, font: { size: 10 }, callback: v => '₹' + (v/1000).toFixed(0) + 'k' } }
+      },
+      onClick(evt, el){ if(el.length){ selectMonth(el[0].index); } }
+    }
+  });
+}
+
+function calcBill(){
+  const d = monthData[selectedIdx];
+  const totalConsumed = getTotal(d);
+  const solar = +document.getElementById('inp-solar').value || 0;
+  const solarGen = +document.getElementById('inp-solar-gen').value || 0;
+  const contract = +document.getElementById('inp-contract').value || 1600;
+  const recorded = +document.getElementById('inp-recorded').value || 1039;
+  const pf = +document.getElementById('inp-pf').value || 97;
+  const touIn = +document.getElementById('inp-tou').value || 0;
+  const ntcUnits = +document.getElementById('inp-ntc-units').value || 0;
+  const ntcRate = +document.getElementById('inp-ntc-rate').value || 0;
+  const pfAdj = +document.getElementById('inp-pf-adj').value || 0;
+  const otherDebit = +document.getElementById('inp-other').value || 0;
+
+  const netUnits = totalConsumed - solar;
+  const billingDem85 = contract * 0.85;
+  const billingDem = Math.max(recorded, billingDem85);
+
+  const energyCharge = netUnits <= 1000 ? netUnits * 4.55 : 1000 * 4.55 + (netUnits - 1000) * 4.45;
+  const fpppa = netUnits * 3.61;
+
+  let fixedDem = 0;
+  if(billingDem <= 1000) fixedDem = billingDem * 260;
+  else if(billingDem <= 1335) fixedDem = 1000 * 260 + (billingDem - 1000) * 335;
+  else fixedDem = 1000 * 260 + 335 * 335 + (billingDem - 1335) * 385;
+
+  const excessDem = recorded > contract ? (recorded - contract) * 385 : 0;
+  const ntcRebate = -(ntcUnits * (ntcRate / 100));
+  const subTotal = energyCharge + fpppa + fixedDem + excessDem + touIn + pfAdj;
+  const govtDuty = subTotal * 0.15;
+  const bankCharges = solarGen * 1.5;
+  const beforeTCS = subTotal + govtDuty + bankCharges + ntcRebate + otherDebit + 0.94;
+  const tcs = Math.round(beforeTCS * 0.001);
+  const amountDue = beforeTCS + tcs;
+
+  const total = totalConsumed;
+  const acPct = d.ac / total;
+  const lfPct = (d.lights + d.fans) / total;
+  const othPct = d.others / total;
+
+  document.getElementById('b-total').textContent = fmt(totalConsumed) + ' kWh';
+  document.getElementById('b-setoff').textContent = '−' + fmt(solar) + ' kWh';
+  document.getElementById('b-net').textContent = fmt(netUnits) + ' kWh';
+  document.getElementById('b-billing-dem').textContent = fmtDec(billingDem85, 0) + ' kW';
+  document.getElementById('b-max-dem').textContent = fmtDec(billingDem, 0) + ' kW';
+
+  document.getElementById('b-ac-pct').textContent = (acPct * 100).toFixed(2) + '%';
+  document.getElementById('b-lf-pct').textContent = (lfPct * 100).toFixed(2) + '%';
+  document.getElementById('b-oth-pct').textContent = (othPct * 100).toFixed(2) + '%';
+  document.getElementById('bar-ac').style.width = (acPct * 100) + '%';
+  document.getElementById('bar-lf').style.width = (lfPct * 100) + '%';
+  document.getElementById('bar-oth').style.width = (othPct * 100) + '%';
+
+  document.getElementById('b-energy').textContent = '₹' + fmtDec(energyCharge);
+  document.getElementById('b-fpppa').textContent = '₹' + fmtDec(fpppa);
+  document.getElementById('b-fixed').textContent = '₹' + fmtDec(fixedDem);
+  document.getElementById('b-excess').textContent = '₹' + fmtDec(excessDem);
+  document.getElementById('b-tou').textContent = '₹' + fmtDec(touIn);
+  document.getElementById('b-pfadj').textContent = (pfAdj < 0 ? '−₹' : '₹') + fmtDec(Math.abs(pfAdj));
+  document.getElementById('b-duty').textContent = '₹' + fmtDec(govtDuty);
+  document.getElementById('b-bank').textContent = '₹' + fmtDec(bankCharges);
+  document.getElementById('b-ntc').textContent = '−₹' + fmtDec(Math.abs(ntcRebate));
+  document.getElementById('b-othdebit').textContent = '₹' + fmtDec(otherDebit);
+  document.getElementById('b-tcs').textContent = '₹' + fmt(tcs);
+  document.getElementById('b-total-due').textContent = '₹' + fmtDec(amountDue);
+}
+
+function renderAll(){
+  renderTable();
+  renderMetrics();
+  renderCharts();
+  calcBill();
+}
+
+document.addEventListener('input', function(e){
+  if(!e.target.matches('#inp-solar,#inp-solar-gen,#inp-contract,#inp-recorded,#inp-pf,#inp-tou,#inp-ntc-units,#inp-ntc-rate,#inp-pf-adj,#inp-other')) return;
+  calcBill();
+  renderCharts(); // refresh cost chart when solar changes
+});
+
+renderAll();
+</script>
+</body>
+</html>
